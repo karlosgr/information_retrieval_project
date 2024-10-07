@@ -14,7 +14,7 @@ class Evaluator:
         # Actualizar el recommender con los datos de entrenamiento
         self.recommender.update_data(self.train_data)
 
-    def train_test_split(self, test_size=0.5):
+    def train_test_split(self, test_size=0.8):
         # Dividir los datos por usuario
         test_data = self.ratings.groupby("userId").apply(
             lambda x: x.sample(frac=test_size)
@@ -84,14 +84,88 @@ class Evaluator:
             ndcgs.append(ndcg)
         return np.mean(ndcgs)
 
+    def map_at_k(self):
+        average_precisions = []
+        for user_id in self.test_data["userId"].unique():
+            actual = self.test_data[self.test_data["userId"] == user_id][
+                "movieId"
+            ].tolist()
+            if not actual:
+                continue
+            recommended = self.recommender.recommend(user_id, top_n=self.k)
+            if not any(recommended):
+                continue
+            hits = 0
+            sum_precisions = 0
+            for i, rec in enumerate(recommended):
+                if rec in actual:
+                    hits += 1
+                    precision_i = hits / (i + 1)
+                    sum_precisions += precision_i
+            if hits > 0:
+                average_precision = sum_precisions / len(actual)
+                average_precisions.append(average_precision)
+        return np.mean(average_precisions) if average_precisions else 0
+
+    def mrr_at_k(self):
+        reciprocal_ranks = []
+        for user_id in self.test_data["userId"].unique():
+            actual = self.test_data[self.test_data["userId"] == user_id][
+                "movieId"
+            ].tolist()
+            if not actual:
+                continue
+            recommended = self.recommender.recommend(user_id, top_n=self.k)
+            if not any(recommended):
+                continue
+            rank = next(
+                (i + 1 for i, rec in enumerate(recommended) if rec in actual), None
+            )
+            if rank:
+                reciprocal_ranks.append(1 / rank)
+        return np.mean(reciprocal_ranks) if reciprocal_ranks else 0
+
+    def hit_rate_at_k(self):
+        hits = 0
+        total = 0
+        for user_id in self.test_data["userId"].unique():
+            actual = self.test_data[self.test_data["userId"] == user_id][
+                "movieId"
+            ].tolist()
+            if not actual:
+                continue
+            recommended = self.recommender.recommend(user_id, top_n=self.k)
+            if not any(recommended):
+                continue
+            if set(recommended) & set(actual):
+                hits += 1
+            total += 1
+        return hits / total if total > 0 else 0
+
+    def coverage(self):
+        recommended_items = set()
+        all_items = set(self.train_data["movieId"].unique())
+        for user_id in self.train_data["userId"].unique():
+            recommended = self.recommender.recommend(user_id, top_n=self.k)
+            recommended_items.update(recommended)
+        return len(recommended_items) / len(all_items) if all_items else 0
+
     def evaluate(self):
         precision = self.precision_at_k()
         recall = self.recall_at_k()
         f1_score = self.f1_score_at_k()
         ndcg = self.ndcg_at_k()
+        map_k = self.map_at_k()
+        mrr_k = self.mrr_at_k()
+        hit_rate = self.hit_rate_at_k()
+        coverage = self.coverage()
         return {
-            "Precision": precision,
-            "Recall": recall,
-            "F1-Score": f1_score,
-            "NDCG": ndcg,
+            "Precision@k": precision,
+            "Recall@k": recall,
+            "F1-Score@k": f1_score,
+            "NDCG@k": ndcg,
+            "MAP@k": map_k,
+            "MRR@k": mrr_k,
+            "Hit Rate@k": hit_rate,
+            "Coverage": coverage,
         }
