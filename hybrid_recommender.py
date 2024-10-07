@@ -12,6 +12,10 @@ class HybridRecommender:
         self.sequential_recommender = sequential_recommender
 
     def recommend(self, user_id, top_n=10):
+        if user_id not in self.collaborative_recommender.user_item_matrix.index:
+            # Si el usuario es nuevo, recomendar películas basadas en popularidad
+            return self.recommend_popular(top_n)
+
         content_rec = self.content_recommender.recommend(user_id, top_n * 2)
         collab_rec = self.collaborative_recommender.recommend(user_id, top_n * 2)
         seq_rec = self.sequential_recommender.recommend(user_id, top_n * 2)
@@ -30,6 +34,21 @@ class HybridRecommender:
         sorted_rec = sorted(rec_scores.items(), key=lambda x: x[1], reverse=True)
         recommendations = [rec[0] for rec in sorted_rec[:top_n]]
         return recommendations
+
+    def recommend_popular(self, top_n=10):
+        """
+        Recomienda las películas más populares en base a la cantidad de calificaciones.
+        """
+        # Calcular la popularidad de cada película según la cantidad de calificaciones
+        movie_popularity = (
+            self.collaborative_recommender.ratings["movieId"]
+            .value_counts()
+            .sort_values(ascending=False)
+        )
+
+        # Seleccionar las top_n películas más populares
+        popular_movies = movie_popularity.head(top_n).index.tolist()
+        return popular_movies
 
     def update_data(self, ratings):
         # Actualizar los datos en los recomendadores
