@@ -107,7 +107,7 @@ class EvaluationGUI(QWidget):
         results = self.evaluator.evaluate()
 
         # Mostrar resultados en la tabla
-        metrics = ["Precision@K", "Recall@K", "F1-Score@K", "NDCG@K"]
+        metrics = ["Precision", "Recall", "F1-Score", "NDCG"]
         self.results_table.clearContents()
         for i, metric in enumerate(metrics):
             self.results_table.setItem(i, 0, QTableWidgetItem(metric))

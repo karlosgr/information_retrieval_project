@@ -10,9 +10,48 @@ from PyQt5.QtWidgets import (
     QVBoxLayout,
     QHBoxLayout,
     QListWidget,
+    QListWidgetItem,
     QMessageBox,
 )
 from PyQt5.QtCore import Qt
+
+
+# Widget personalizado para mostrar título y estrellas
+class MovieRatingWidget(QWidget):
+    def __init__(self, movie_title, stars, parent=None):
+        super().__init__(parent)
+
+        # Crear etiquetas
+        self.title_label = QLabel(movie_title)
+        self.stars_label = QLabel(stars)
+
+        # Opcional: Configurar propiedades de las etiquetas
+        self.title_label.setStyleSheet(
+            """
+            background: transparent;
+            font-size: 13px;
+            color: #2c3e50;  /* Color de la fuente para contraste */
+        """
+        )
+        self.stars_label.setStyleSheet(
+            """
+            background: transparent;
+            font-size: 13px;
+            color: #2c3e50;  /* Color de la fuente para contraste */
+        """
+        )
+
+        # Layout horizontal sin mucho espaciado
+        layout = QHBoxLayout()
+        layout.addWidget(self.title_label)
+        layout.addStretch()  # Espacio flexible entre título y estrellas
+        layout.addWidget(self.stars_label)
+        layout.setContentsMargins(
+            5, 1, 5, 1
+        )  # Reducir los márgenes alrededor del contenido
+        layout.setSpacing(10)  # Espaciado entre elementos en la misma fila
+
+        self.setLayout(layout)
 
 
 class RecommenderGUI(QWidget):
@@ -25,7 +64,7 @@ class RecommenderGUI(QWidget):
 
     def init_ui(self):
         self.setWindowTitle("Sistema de Recomendación de Películas")
-        self.setGeometry(100, 100, 800, 600)
+        self.setGeometry(100, 100, 600, 600)
 
         # Widgets
         self.user_label = QLabel("ID de Usuario:")
@@ -95,6 +134,26 @@ class RecommenderGUI(QWidget):
         """
         )
 
+    def get_star_rating(self, rating, max_stars=5):
+        full_star = "★"
+        half_star = (
+            "½"  # Puedes usar otro símbolo si prefieres una media estrella visual
+        )
+        empty_star = "☆"
+
+        # Convertir la calificación en número de estrellas llenas y medias
+        full_stars = int(rating)
+        half_star_flag = False
+        if (rating - full_stars) >= 0.5:
+            half_star_flag = True
+
+        stars = full_star * full_stars
+        if half_star_flag:
+            stars += half_star
+        stars += empty_star * (max_stars - full_stars - (1 if half_star_flag else 0))
+
+        return stars
+
     def get_recommendations(self):
         user_id_text = self.user_input.text()
         n_text = self.n_input.text()
@@ -125,13 +184,21 @@ class RecommenderGUI(QWidget):
                     self.movies["movieId"] == movie_id, "title"
                 ].values
                 if movie_title.size > 0:
-                    self.rated_movies_list.addItem(
-                        f"{movie_title[0]} (Calificación: {rating})"
-                    )
+                    title = movie_title[0]
                 else:
-                    self.rated_movies_list.addItem(
-                        f"ID {movie_id} (Calificación: {rating})"
-                    )
+                    title = f"ID {movie_id}"
+
+                stars = self.get_star_rating(rating)
+
+                # Crear un nuevo QListWidgetItem
+                item = QListWidgetItem()
+                # Crear el widget personalizado
+                widget = MovieRatingWidget(title, stars)
+                # Establecer el tamaño del ítem según el widget
+                item.setSizeHint(widget.sizeHint())
+                # Agregar el ítem a la lista
+                self.rated_movies_list.addItem(item)
+                self.rated_movies_list.setItemWidget(item, widget)
 
         # Obtener recomendaciones
         recommendations = self.hybrid_recommender.recommend(user_id, top_n=top_n)

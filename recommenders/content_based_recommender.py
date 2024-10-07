@@ -1,14 +1,15 @@
 # content_based.py
-
+from recommenders.recommender_base import Recommender
 from sklearn.metrics.pairwise import linear_kernel
+from sklearn.feature_extraction.text import TfidfVectorizer
 import numpy as np
 
 
-class ContentBasedRecommender:
-    def __init__(self, tfidf_matrix, movies, ratings):
-        self.tfidf_matrix = tfidf_matrix
-        self.movies = movies.reset_index()
-        self.ratings = ratings
+class ContentBasedRecommender(Recommender):
+    def __init__(self, movies, ratings):
+        super().__init__(movies, ratings)
+        tfidf = TfidfVectorizer(stop_words="english")
+        tfidf_matrix = tfidf.fit_transform(movies["metadata"])
         self.cosine_sim = linear_kernel(tfidf_matrix, tfidf_matrix)
 
     def recommend(self, user_id, top_n=10):
